@@ -1,8 +1,21 @@
 import { useQuery } from "convex/react";
-import { useRef, useState } from "react";
+import { useRef, useState, createContext, useContext } from "react";
 import { api } from "../convex/_generated/api";
 
-const SITE_URL_OVERRIDE: string | undefined = undefined;
+type SiteUrlContextType = {
+  siteUrlOverride: string;
+  setSiteUrlOverride: (url: string) => void;
+};
+
+const SiteUrlContext = createContext<SiteUrlContextType | null>(null);
+
+function useSiteUrlContext() {
+  const context = useContext(SiteUrlContext);
+  if (!context) {
+    throw new Error("useSiteUrlContext must be used within a SiteUrlProvider");
+  }
+  return context;
+}
 
 interface HttpEndpointTesterProps {
   endpoint: string;
@@ -20,7 +33,9 @@ function HttpEndpointTester({ endpoint, description }: HttpEndpointTesterProps) 
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const siteUrl = SITE_URL_OVERRIDE ?? useQuery(api.messages.siteUrl);
+  const queriedSiteUrl = useQuery(api.messages.siteUrl);
+  const { siteUrlOverride } = useSiteUrlContext();
+  const siteUrl = siteUrlOverride || queriedSiteUrl;
   const fullUrl = `${siteUrl}/${endpoint}`;
 
   async function handleTest() {
@@ -198,35 +213,57 @@ function HttpEndpointTester({ endpoint, description }: HttpEndpointTesterProps) 
 }
 
 export default function App() {
+  const [siteUrlOverride, setSiteUrlOverride] = useState<string>("");
+
   return (
-    <main>
-      <h1>HTTP Action Test</h1>
-      <div style={{ display: "flex", gap: "1rem", flexDirection: "column" }}>
-        <HttpEndpointTester 
-          endpoint="delayed"
-          description="sleep(3) before returning response"
-        />
-        <HttpEndpointTester 
-          endpoint="delayedBody"
-          description="send first response chunk, then sleep(3), then send second chunk"
-        />
-        <HttpEndpointTester 
-          endpoint="delayedCancel"
-          description="sleep(3), return different response on abort"
-        />
-        <HttpEndpointTester 
-          endpoint="throwError"
-          description="endpoint throws error"
-        />
-        <HttpEndpointTester 
-          endpoint="throwErrorBody"
-          description="endpoint returns streamed body, then throws error"
-        />
-        <HttpEndpointTester 
-          endpoint="streamAi"
-          description="stream ai response (requires OPENAI_API_KEY)"
-        />
-      </div>
-    </main>
+    <SiteUrlContext.Provider value={{ siteUrlOverride, setSiteUrlOverride }}>
+      <main>
+        <h1>HTTP Action Test</h1>
+        <div style={{ marginBottom: "2rem" }}>
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>
+            Site URL Override:
+            <input
+              type="text"
+              value={siteUrlOverride}
+              onChange={(e) => setSiteUrlOverride(e.target.value)}
+              placeholder="Enter site URL override"
+              style={{
+                marginLeft: "0.5rem",
+                padding: "0.25rem 0.5rem",
+                width: "300px",
+                borderRadius: "4px",
+                border: "1px solid #ccc"
+              }}
+            />
+          </label>
+        </div>
+        <div style={{ display: "flex", gap: "1rem", flexDirection: "column" }}>
+          <HttpEndpointTester 
+            endpoint="delayed"
+            description="sleep(3) before returning response"
+          />
+          <HttpEndpointTester 
+            endpoint="delayedBody"
+            description="send first response chunk, then sleep(3), then send second chunk"
+          />
+          <HttpEndpointTester 
+            endpoint="delayedCancel"
+            description="sleep(3), return different response on abort"
+          />
+          <HttpEndpointTester 
+            endpoint="throwError"
+            description="endpoint throws error"
+          />
+          <HttpEndpointTester 
+            endpoint="throwErrorBody"
+            description="endpoint returns streamed body, then throws error"
+          />
+          <HttpEndpointTester 
+            endpoint="streamAi"
+            description="stream ai response (requires OPENAI_API_KEY)"
+          />
+        </div>
+      </main>
+    </SiteUrlContext.Provider>
   );
 }
