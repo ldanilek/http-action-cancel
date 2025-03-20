@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { useRef, useState } from "react";
 import { api } from "../convex/_generated/api";
 
-const SITE_URL = "https://giant-firefly-602.convex.site";
+const SITE_URL_OVERRIDE: string | undefined = undefined;
 
 interface HttpEndpointTesterProps {
   endpoint: string;
@@ -20,7 +20,8 @@ function HttpEndpointTester({ endpoint, description }: HttpEndpointTesterProps) 
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const siteUrl = useQuery(api.messages.siteUrl);
+  const siteUrl = SITE_URL_OVERRIDE ?? useQuery(api.messages.siteUrl);
+  const fullUrl = `${siteUrl}/${endpoint}`;
 
   async function handleTest() {
     // Cancel any existing request
@@ -36,7 +37,7 @@ function HttpEndpointTester({ endpoint, description }: HttpEndpointTesterProps) 
     setError(null);
     
     try {
-      const response = await fetch(`${siteUrl}/${endpoint}`, {
+      const response = await fetch(fullUrl, {
         signal: abortController.signal
       });
       setIsInitialLoading(false);
@@ -141,7 +142,8 @@ function HttpEndpointTester({ endpoint, description }: HttpEndpointTesterProps) 
           color: "#666",
           fontSize: "0.9em"
         }}>
-          {description}
+          <p>{fullUrl}</p>
+          <p>{description}</p>
         </div>
         <style>
           {`
@@ -222,7 +224,7 @@ export default function App() {
         />
         <HttpEndpointTester 
           endpoint="streamAi"
-          description="stream ai response"
+          description="stream ai response (requires OPENAI_API_KEY)"
         />
       </div>
     </main>
